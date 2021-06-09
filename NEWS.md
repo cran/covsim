@@ -1,3 +1,5 @@
-# covsim 0.1.0
+# covsim 0.2.0
 
-First release. Contains two functions, vita and rIG. vita can not yet accommodate user-defined marginal distributions, only distributions from the stats package.
+Second release. Added new non-normal simulation procedure, PLSIM.
+Based on piecewise linear transform of standard normal variates. 
+
