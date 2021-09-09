@@ -1,4 +1,4 @@
-0ebf0ced8ce16ddda1538d00c1dd8bc6 *DESCRIPTION
+cf51df92207e8f767a4ef26d61374908 *DESCRIPTION
 bb324737981c2a9ab235ec8d1dc76016 *NAMESPACE
 355530943d6487ac94c248e2df56c33c *NEWS.md
 d1b577b280b5e421305fe378a1ed9c0d *R/IG.R
@@ -7,7 +7,11 @@ d1b577b280b5e421305fe378a1ed9c0d *R/IG.R
 9124aa411d020d9d0b8664b469ddd977 *R/solveparam.R
 3bb05c1ddef66d47516637a7cce0c6dd *R/vita.R
 80f62a9b495ede400ba1931fd3b70afd *README.md
+0f88b5a26da66791521c741cae7f8da8 *build/vignette.rds
 9000b616848dcb50f3d110ca8bf5eacb *inst/CITATION
+1da7514fade0a831fc3ca212c9e53fb2 *inst/doc/vignette.pdf
+19ce279e739c244cbe30a26ce757053e *inst/doc/vignette.pdf.asis
 afe19b5248b0472b52c778952074203f *man/rIG.Rd
 716c407dbbf08f04497cc11f3eec8b45 *man/rPLSIM.Rd
 b51606b1fd4605ba6a6ca4d96856ceff *man/vita.Rd
+19ce279e739c244cbe30a26ce757053e *vignettes/vignette.pdf.asis
