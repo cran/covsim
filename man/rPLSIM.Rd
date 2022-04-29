@@ -42,7 +42,7 @@ A list with two elements. First element: the list of simulated samples. Second e
 Using the piecewise linear PLSIM method to simulate non-normal data
 }
 \examples{
-#'set.seed(1)
+set.seed(1)
 sigma.target  <- cov(MASS::mvrnorm(5, rep(0,3), diag(3)))
 res  <- covsim::rPLSIM(10^5, sigma.target, skewness=rep(1,3), excesskurtosis=rep(4,3))
 my.sample  <- res[[1]][[1]]

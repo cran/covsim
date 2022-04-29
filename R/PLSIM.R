@@ -16,7 +16,7 @@
 #' @author Njål Foldnes  (\email{njal.foldnes@gmail.com})
 #' @references Foldnes, N. and Grønneberg S. (2021). Non-normal data simulation using piecewise linear transforms.Under review.
 #' @examples
-#' #'set.seed(1)
+#'set.seed(1)
 #'sigma.target  <- cov(MASS::mvrnorm(5, rep(0,3), diag(3)))
 #'res  <- covsim::rPLSIM(10^5, sigma.target, skewness=rep(1,3), excesskurtosis=rep(4,3))
 #'my.sample  <- res[[1]][[1]]
