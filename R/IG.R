@@ -8,7 +8,7 @@
 #' @param skewness Target skewness
 #' @param excesskurtosis Target excess kurtosis
 #' @param reps Number of simulated samples
-#' @param typeA Symmetrical (default) or triangular A matrix
+#' @param typeA Symmetrical or triangular (default) A matrix
 #' @return A list of simulated samples
 #' @author Njål Foldnes  (\email{njal.foldnes@gmail.com})
 #' @references Foldnes, N. and Olson, U. H. (2016). A simple simulation technique for nonnormal data with prespecified skewness,
@@ -32,13 +32,13 @@
 #' fit  <- lavaan::sem(model, data=lavaan::PoliticalDemocracy)
 #' population.sigma <- lavaan::lavInspect(fit, "sigma.hat")
 #' population.skew  <- c(0, 0, 0, 0, 1, 1, 1, 1, 2,2,2 )
-#' population.excesskurt <- c( 1 , 1, 1, 1, 3, 3, 3, 3, 7, 7, 7)
+#' population.excesskurt <- c( 1 , 1, 1, 1, 3, 3, 3, 3, 15, 15, 15)
 #' my.samples <- rIG(N=10^3, sigma=population.sigma,
 #'         skewness=population.skew,
 #'         excesskurt=population.excesskurt,
 #'         reps=5)
 #' @export
-rIG <- function(N, sigma.target,  skewness, excesskurtosis, reps=1, typeA=c("symm", "triang")) {
+rIG <- function(N, sigma.target,  skewness, excesskurtosis, reps=1, typeA="triang") {
   if(  is.null(sigma.target))
     stop("Please specify sigma.target")
 
@@ -61,16 +61,20 @@ rIG <- function(N, sigma.target,  skewness, excesskurtosis, reps=1, typeA=c("sym
   }
 
   #calculate A
-  typeA <- match.arg(typeA)
-  if(typeA=="triang")
-    A  <- t(chol(sigma.target))
-  else
+  if(typeA=="symm")
     A  <- lavaan::lav_matrix_symmetric_sqrt(sigma.target)#symmetric
+  else
+    A  <- t(chol(sigma.target))
 
   IGskew        <- nleqslv::nleqslv(x=skewness, function.skew)$x
   IGkurt.excess <- nleqslv::nleqslv(x=excesskurtosis, function.kurt)$x
   parlist       <- list()
-  for (i in 1:nvar) parlist[[i]] <- PearsonDS::pearsonFitM(moments=c(mean=0, variance=1, skewness=IGskew[i], 3+IGkurt.excess[i]))
+  for (i in 1:nvar){
+    res <- tryCatch(PearsonDS::pearsonFitM(moments=c(mean=0, variance=1, skewness=IGskew[i], 3+IGkurt.excess[i])),
+                    error = function(c) {
+                      stop(paste("No valid solution for variable", i, "- Try setting typeA==\"symm\"."))})
+    parlist[[i]] <- res
+  }
 
   IGdata <- sapply(1:nvar, function(i) PearsonDS::rpearson(N*reps, parlist[[i]]) )
 

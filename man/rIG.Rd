@@ -4,14 +4,7 @@
 \alias{rIG}
 \title{Simulation of non-normal data}
 \usage{
-rIG(
-  N,
-  sigma.target,
-  skewness,
-  excesskurtosis,
-  reps = 1,
-  typeA = c("symm", "triang")
-)
+rIG(N, sigma.target, skewness, excesskurtosis, reps = 1, typeA = "triang")
 }
 \arguments{
 \item{N}{Number of observations to simulate.}
@@ -24,7 +17,7 @@ rIG(
 
 \item{reps}{Number of simulated samples}
 
-\item{typeA}{Symmetrical (default) or triangular A matrix}
+\item{typeA}{Symmetrical or triangular (default) A matrix}
 }
 \value{
 A list of simulated samples
@@ -51,7 +44,7 @@ model <- '
 fit  <- lavaan::sem(model, data=lavaan::PoliticalDemocracy)
 population.sigma <- lavaan::lavInspect(fit, "sigma.hat")
 population.skew  <- c(0, 0, 0, 0, 1, 1, 1, 1, 2,2,2 )
-population.excesskurt <- c( 1 , 1, 1, 1, 3, 3, 3, 3, 7, 7, 7)
+population.excesskurt <- c( 1 , 1, 1, 1, 3, 3, 3, 3, 15, 15, 15)
 my.samples <- rIG(N=10^3, sigma=population.sigma,
         skewness=population.skew,
         excesskurt=population.excesskurt,
