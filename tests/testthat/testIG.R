@@ -28,3 +28,22 @@ test_that("IG works", {
 })
 
 
+
+
+test_that("IG generator moments solve the linear moment systems exactly", {
+  set.seed(1)
+  sigma0 <- cov(MASS::mvrnorm(20, rep(0, 4), diag(4)))
+  s <- c(0.5, 1, 1.5, 2); k <- c(2, 4, 6, 8)
+  for (typeA in c("triang", "symm")) {
+    cal <- calibrate_ig(sigma0, s, k, typeA = typeA)
+    A <- cal$A; sc <- sqrt(rowSums(A^2))
+    expect_equal(as.vector((A^3 / sc^3) %*% cal$IGskew), s, tolerance = 1e-10)
+    expect_equal(as.vector((A^4 / sc^4) %*% cal$IGkurt.excess), k, tolerance = 1e-10)
+  }
+})
+
+
+test_that("IG reports infeasible generator moments", {
+  sigma0 <- matrix(c(1, 0.9, 0.9, 1), 2)
+  expect_error(calibrate_ig(sigma0, c(0, 3), c(0, 5)), "No valid IG generator")
+})

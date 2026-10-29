@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Njål Foldnes" />
+
+<meta name="date" content="2026-10-29" />
+
+<title>The calibrate / simulate workflow in covsim</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">The calibrate / simulate workflow in
+covsim</h1>
+<h4 class="author">Njål Foldnes</h4>
+<h4 class="date">2026-10-29</h4>
+
+
+
+<div id="motivation" class="section level2">
+<h2>Motivation</h2>
+<p>Since covsim 1.2.0, each of the three algorithms (<code>IG</code>,
+<code>PLSIM</code>, <code>VITA</code>) is split into two steps:</p>
+<ol style="list-style-type: decimal">
+<li><strong>Calibration</strong> — fits the model parameters that
+achieve the target covariance (and the target marginal moments where
+applicable). This step is the expensive one. It only needs to be run
+once for a given target.</li>
+<li><strong>Simulation</strong> — draws data from the calibrated model.
+Fast. Can be repeated as often as needed, returning a list of
+independent samples.</li>
+</ol>
+<p>The original <code>rIG()</code>, <code>rPLSIM()</code> and
+<code>vita()</code> functions are unchanged and still work; they are now
+thin wrappers that calibrate and simulate in one call. New code that
+needs many simulated datasets from the same target should call the
+calibrator once and reuse the calibration object.</p>
+</div>
+<div id="the-general-pattern" class="section level2">
+<h2>The general pattern</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(covsim)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># 1. calibrate once</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>cal <span class="ot">&lt;-</span> <span class="fu">calibrate_ig</span>(sigma.target, skewness, excesskurtosis)</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co">#   ... or calibrate_plsim(...)</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co">#   ... or calibrate_vm(...)</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co">#   ... or calibrate_vita(margins, sigma.target)</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="co"># 2. simulate one or more datasets</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>draws <span class="ot">&lt;-</span> <span class="fu">simulate</span>(cal, <span class="at">nsim =</span> <span class="dv">100</span>, <span class="at">N =</span> <span class="dv">1000</span>)   <span class="co"># list of 100 data matrices</span></span></code></pre></div>
+<p><code>simulate()</code> here is the standard
+<code>stats::simulate</code> generic; covsim registers S3 methods for it
+on the four calibration object classes (<code>covsim_calib_ig</code>,
+<code>covsim_calib_plsim</code>, <code>covsim_calib_vm</code>,
+<code>covsim_calib_vita</code>).</p>
+</div>
+<div id="ig-independent-generator" class="section level2">
+<h2>IG (Independent Generator)</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(covsim)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="dv">4</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>sigma.target <span class="ot">&lt;-</span> <span class="fu">cov</span>(MASS<span class="sc">::</span><span class="fu">mvrnorm</span>(<span class="dv">50</span>, <span class="at">mu =</span> <span class="fu">rep</span>(<span class="dv">0</span>, d), <span class="at">Sigma =</span> <span class="fu">diag</span>(d)))</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>cal_ig <span class="ot">&lt;-</span> <span class="fu">calibrate_ig</span>(sigma.target,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>                       <span class="at">skewness        =</span> <span class="fu">rep</span>(<span class="dv">1</span>, d),</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>                       <span class="at">excesskurtosis  =</span> <span class="fu">rep</span>(<span class="dv">3</span>, d))</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="fu">class</span>(cal_ig)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt; [1] &quot;covsim_calib_ig&quot; &quot;covsim_calib&quot;</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co"># draw five independent datasets from the same calibration</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>draws <span class="ot">&lt;-</span> <span class="fu">simulate</span>(cal_ig, <span class="at">nsim =</span> <span class="dv">5</span>, <span class="at">N =</span> <span class="dv">10000</span>)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a><span class="fu">length</span>(draws)</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a><span class="co">#&gt; [1] 5</span></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="fu">dim</span>(draws[[<span class="dv">1</span>]])</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a><span class="co">#&gt; [1] 10000     4</span></span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">cov</span>(draws[[<span class="dv">1</span>]]) <span class="sc">-</span> sigma.target, <span class="dv">3</span>)</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co">#&gt;        [,1]   [,2]   [,3]   [,4]</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co">#&gt; [1,]  0.004  0.021 -0.002  0.001</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a><span class="co">#&gt; [2,]  0.021 -0.009 -0.001  0.000</span></span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a><span class="co">#&gt; [3,] -0.002 -0.001  0.012 -0.011</span></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co">#&gt; [4,]  0.001  0.000 -0.011  0.008</span></span></code></pre></div>
+<p>The first call to <code>calibrate_ig</code> does the work; subsequent
+<code>simulate()</code> calls are nearly free.</p>
+</div>
+<div id="plsim-piecewise-linear" class="section level2">
+<h2>PLSIM (Piecewise Linear)</h2>
+<p>PLSIM’s pairwise calibration solves one intermediate correlation per
+variable pair. Since covsim 1.2.0 each pairwise covariance is computed
+exactly from Price’s theorem, so calibration takes well under a second
+even for a dozen variables, and the calibration can be reused for any
+number of replications.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>sigma.target <span class="ot">&lt;-</span> <span class="fu">cov</span>(MASS<span class="sc">::</span><span class="fu">mvrnorm</span>(<span class="dv">50</span>, <span class="at">mu =</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">4</span>), <span class="at">Sigma =</span> <span class="fu">diag</span>(<span class="dv">4</span>)))</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>cal_pl <span class="ot">&lt;-</span> <span class="fu">calibrate_plsim</span>(sigma.target,</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>                          <span class="at">skewness       =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">4</span>),</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>                          <span class="at">excesskurtosis =</span> <span class="fu">rep</span>(<span class="dv">3</span>, <span class="dv">4</span>),</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>                          <span class="at">verbose        =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co"># Re-use the calibration for many replications</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>replications <span class="ot">&lt;-</span> <span class="fu">simulate</span>(cal_pl, <span class="at">nsim =</span> <span class="dv">50</span>, <span class="at">N =</span> <span class="dv">500</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="fu">length</span>(replications)</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; [1] 50</span></span></code></pre></div>
+</div>
+<div id="vm-vale-maurelli" class="section level2">
+<h2>VM (Vale-Maurelli)</h2>
+<p>The Vale-Maurelli method transforms correlated normals with Fleishman
+polynomials. Like IG and PLSIM, only skewness and excess kurtosis are
+specified.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>sigma.target <span class="ot">&lt;-</span> <span class="fu">cov</span>(MASS<span class="sc">::</span><span class="fu">mvrnorm</span>(<span class="dv">50</span>, <span class="at">mu =</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">4</span>), <span class="at">Sigma =</span> <span class="fu">diag</span>(<span class="dv">4</span>)))</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>cal_vm <span class="ot">&lt;-</span> <span class="fu">calibrate_vm</span>(sigma.target,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>                       <span class="at">skewness       =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">4</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>                       <span class="at">excesskurtosis =</span> <span class="fu">rep</span>(<span class="dv">3</span>, <span class="dv">4</span>))</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>cal_vm<span class="sc">$</span>coef      <span class="co"># Fleishman coefficients, one row per variable</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;               a         b         c          d</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; [1,] -0.1283967 0.8322163 0.1283967 0.04803206</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; [2,] -0.1283967 0.8322163 0.1283967 0.04803206</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; [3,] -0.1283967 0.8322163 0.1283967 0.04803206</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; [4,] -0.1283967 0.8322163 0.1283967 0.04803206</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>draws <span class="ot">&lt;-</span> <span class="fu">simulate</span>(cal_vm, <span class="at">nsim =</span> <span class="dv">5</span>, <span class="at">N =</span> <span class="dv">10000</span>)</span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">cov</span>(draws[[<span class="dv">1</span>]]) <span class="sc">-</span> sigma.target, <span class="dv">3</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;        [,1]   [,2]   [,3]   [,4]</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; [1,]  0.015  0.008  0.011 -0.009</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; [2,]  0.008  0.002  0.004 -0.005</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt; [3,]  0.011  0.004 -0.006  0.018</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt; [4,] -0.009 -0.005  0.018 -0.007</span></span></code></pre></div>
+</div>
+<div id="from-calibration-to-a-monte-carlo-study" class="section level2">
+<h2>From calibration to a Monte Carlo study</h2>
+<p><code>simulate_estimate()</code> combines simulation and estimation.
+Here the rejection rate of the ML chi-square test is compared under IG
+and VM data with the same covariance matrix, skewness and kurtosis:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>sigma <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fl">0.5</span>, <span class="dv">4</span>, <span class="dv">4</span>); <span class="fu">diag</span>(sigma) <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">dimnames</span>(sigma) <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="fu">paste0</span>(<span class="st">&quot;x&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>), <span class="fu">paste0</span>(<span class="st">&quot;x&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>dists <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">IG =</span> <span class="fu">calibrate_ig</span>(sigma, <span class="fu">rep</span>(<span class="dv">2</span>, <span class="dv">4</span>), <span class="fu">rep</span>(<span class="dv">7</span>, <span class="dv">4</span>)),</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>              <span class="at">VM =</span> <span class="fu">calibrate_vm</span>(sigma, <span class="fu">rep</span>(<span class="dv">2</span>, <span class="dv">4</span>), <span class="fu">rep</span>(<span class="dv">7</span>, <span class="dv">4</span>)))</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, <span class="at">model =</span> <span class="st">&quot;F =~ x1 + x2 + x3 + x4&quot;</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>                         <span class="at">n =</span> <span class="dv">200</span>, <span class="at">reps =</span> <span class="dv">50</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>                         <span class="at">extractor =</span> <span class="cf">function</span>(fit) lavaan<span class="sc">::</span><span class="fu">fitMeasures</span>(fit, <span class="st">&quot;pvalue&quot;</span>))</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="fu">aggregate</span>(pvalue <span class="sc">~</span> dist, res, <span class="cf">function</span>(p) <span class="fu">mean</span>(p <span class="sc">&lt;</span> <span class="fl">0.05</span>))</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   dist pvalue</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt; 1   IG   0.12</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; 2   VM   0.16</span></span></code></pre></div>
+<p>Each replication uses its own random number stream, so
+<code>cores = 4</code> gives the same result as <code>cores = 1</code>.
+Pass <code>fit = &quot;magmaan&quot;</code> to estimate with magmaan instead of
+lavaan, or any <code>function(data, model)</code>.
+<code>vignette(&quot;simulation-study&quot;, package = &quot;covsim&quot;)</code> shows a
+complete study, with and without magmaan.</p>
+</div>
+<div id="vita-vine-to-anything" class="section level2">
+<h2>VITA (Vine-To-Anything)</h2>
+<p><code>calibrate_vita()</code> calibrates a regular vine to match the
+target covariance under user-specified marginals. The resulting
+calibration object embeds the underlying <code>vine_dist</code>, so it
+can be passed to <code>simulate()</code> (recommended) or to
+<code>rvinecopulib::rvine()</code> directly.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>sigma.target <span class="ot">&lt;-</span> <span class="fu">cov</span>(MASS<span class="sc">::</span><span class="fu">mvrnorm</span>(<span class="dv">50</span>, <span class="at">mu =</span> <span class="fu">rep</span>(<span class="dv">0</span>, d), <span class="at">Sigma =</span> <span class="fu">diag</span>(d)))</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>margins <span class="ot">&lt;-</span> <span class="fu">lapply</span>(<span class="fu">sqrt</span>(<span class="fu">diag</span>(sigma.target)),</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>                  <span class="cf">function</span>(s) <span class="fu">list</span>(<span class="at">distr =</span> <span class="st">&quot;norm&quot;</span>, <span class="at">sd =</span> s))</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>cal_vita <span class="ot">&lt;-</span> <span class="fu">calibrate_vita</span>(margins, sigma.target,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>                           <span class="at">Nmax    =</span> <span class="fl">1e5</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>                           <span class="at">cores   =</span> parallel<span class="sc">::</span><span class="fu">detectCores</span>(),</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>                           <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>draws <span class="ot">&lt;-</span> <span class="fu">simulate</span>(cal_vita, <span class="at">nsim =</span> <span class="dv">10</span>, <span class="at">N =</span> <span class="dv">1000</span>)</span></code></pre></div>
+<p><code>cores</code> is passed to <code>rvinecopulib</code>, which
+draws the calibration samples in parallel threads. The calibration
+algorithm is the same as in covsim 1.1.0.</p>
+</div>
+<div id="when-to-use-the-wrappers-vs-the-new-api" class="section level2">
+<h2>When to use the wrappers vs the new API</h2>
+<p>Use the new API when:</p>
+<ul>
+<li>You need many replications from the same target (simulation
+studies).</li>
+<li>You want to inspect the calibrated model before simulating.</li>
+<li>You want to call <code>simulate()</code> in pipelines (it is the
+standard R generic).</li>
+</ul>
+<p>Use the original <code>rIG()</code> / <code>rPLSIM()</code> /
+<code>vita()</code> wrappers when:</p>
+<ul>
+<li>You only need a one-shot draw.</li>
+<li>You’re maintaining old code; both still work and produce the same
+output shape as in covsim 1.1.0.</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

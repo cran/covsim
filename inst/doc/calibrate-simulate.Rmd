@@ -1,0 +1,179 @@
+---
+title: "The calibrate / simulate workflow in covsim"
+author: "Njål Foldnes"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The calibrate / simulate workflow in covsim}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+## Motivation
+
+Since covsim 1.2.0, each of the three algorithms (`IG`, `PLSIM`, `VITA`) is
+split into two steps:
+
+1. **Calibration** — fits the model parameters that achieve the target
+   covariance (and the target marginal moments where applicable). This step
+   is the expensive one. It only needs to be run once for a given target.
+2. **Simulation** — draws data from the calibrated model. Fast. Can be
+   repeated as often as needed, returning a list of independent samples.
+
+The original `rIG()`, `rPLSIM()` and `vita()` functions are unchanged and
+still work; they are now thin wrappers that calibrate and simulate in one
+call. New code that needs many simulated datasets from the same target
+should call the calibrator once and reuse the calibration object.
+
+## The general pattern
+
+```{r eval=FALSE}
+library(covsim)
+
+# 1. calibrate once
+cal <- calibrate_ig(sigma.target, skewness, excesskurtosis)
+#   ... or calibrate_plsim(...)
+#   ... or calibrate_vm(...)
+#   ... or calibrate_vita(margins, sigma.target)
+
+# 2. simulate one or more datasets
+draws <- simulate(cal, nsim = 100, N = 1000)   # list of 100 data matrices
+```
+
+`simulate()` here is the standard `stats::simulate` generic; covsim
+registers S3 methods for it on the four calibration object classes
+(`covsim_calib_ig`, `covsim_calib_plsim`, `covsim_calib_vm`,
+`covsim_calib_vita`).
+
+## IG (Independent Generator)
+
+```{r}
+library(covsim)
+set.seed(1)
+d <- 4
+sigma.target <- cov(MASS::mvrnorm(50, mu = rep(0, d), Sigma = diag(d)))
+
+cal_ig <- calibrate_ig(sigma.target,
+                       skewness        = rep(1, d),
+                       excesskurtosis  = rep(3, d))
+class(cal_ig)
+
+# draw five independent datasets from the same calibration
+draws <- simulate(cal_ig, nsim = 5, N = 10000)
+length(draws)
+dim(draws[[1]])
+round(cov(draws[[1]]) - sigma.target, 3)
+```
+
+The first call to `calibrate_ig` does the work; subsequent `simulate()`
+calls are nearly free.
+
+## PLSIM (Piecewise Linear)
+
+PLSIM's pairwise calibration solves one intermediate correlation per
+variable pair. Since covsim 1.2.0 each pairwise covariance is computed
+exactly from Price's theorem, so calibration takes well under a second
+even for a dozen variables, and the calibration can be reused for any number
+of replications.
+
+```{r}
+set.seed(1)
+sigma.target <- cov(MASS::mvrnorm(50, mu = rep(0, 4), Sigma = diag(4)))
+cal_pl <- calibrate_plsim(sigma.target,
+                          skewness       = rep(1, 4),
+                          excesskurtosis = rep(3, 4),
+                          verbose        = FALSE)
+
+# Re-use the calibration for many replications
+replications <- simulate(cal_pl, nsim = 50, N = 500)
+length(replications)
+```
+
+## VM (Vale-Maurelli)
+
+The Vale-Maurelli method transforms correlated normals with Fleishman
+polynomials. Like IG and PLSIM, only skewness and excess kurtosis are
+specified.
+
+```{r}
+set.seed(1)
+sigma.target <- cov(MASS::mvrnorm(50, mu = rep(0, 4), Sigma = diag(4)))
+cal_vm <- calibrate_vm(sigma.target,
+                       skewness       = rep(1, 4),
+                       excesskurtosis = rep(3, 4))
+cal_vm$coef      # Fleishman coefficients, one row per variable
+draws <- simulate(cal_vm, nsim = 5, N = 10000)
+round(cov(draws[[1]]) - sigma.target, 3)
+```
+
+## From calibration to a Monte Carlo study
+
+`simulate_estimate()` combines simulation and estimation. Here the
+rejection rate of the ML chi-square test is compared under IG and VM data
+with the same covariance matrix, skewness and kurtosis:
+
+```{r}
+sigma <- matrix(0.5, 4, 4); diag(sigma) <- 1
+dimnames(sigma) <- list(paste0("x", 1:4), paste0("x", 1:4))
+dists <- list(IG = calibrate_ig(sigma, rep(2, 4), rep(7, 4)),
+              VM = calibrate_vm(sigma, rep(2, 4), rep(7, 4)))
+res <- simulate_estimate(dists, model = "F =~ x1 + x2 + x3 + x4",
+                         n = 200, reps = 50, seed = 1,
+                         extractor = function(fit) lavaan::fitMeasures(fit, "pvalue"))
+aggregate(pvalue ~ dist, res, function(p) mean(p < 0.05))
+```
+
+Each replication uses its own random number stream, so `cores = 4` gives
+the same result as `cores = 1`. Pass `fit = "magmaan"` to estimate with
+magmaan instead of lavaan, or any `function(data, model)`.
+`vignette("simulation-study", package = "covsim")` shows a complete study,
+with and without magmaan.
+
+## VITA (Vine-To-Anything)
+
+`calibrate_vita()` calibrates a regular vine to match the target
+covariance under user-specified marginals. The resulting calibration
+object embeds the underlying `vine_dist`, so it can be passed to
+`simulate()` (recommended) or to `rvinecopulib::rvine()` directly.
+
+```{r eval=FALSE}
+set.seed(1)
+d <- 5
+sigma.target <- cov(MASS::mvrnorm(50, mu = rep(0, d), Sigma = diag(d)))
+margins <- lapply(sqrt(diag(sigma.target)),
+                  function(s) list(distr = "norm", sd = s))
+
+cal_vita <- calibrate_vita(margins, sigma.target,
+                           Nmax    = 1e5,
+                           cores   = parallel::detectCores(),
+                           verbose = FALSE)
+
+draws <- simulate(cal_vita, nsim = 10, N = 1000)
+```
+
+`cores` is passed to `rvinecopulib`, which draws the calibration samples
+in parallel threads. The calibration algorithm is the same as in covsim
+1.1.0.
+
+## When to use the wrappers vs the new API
+
+Use the new API when:
+
+- You need many replications from the same target (simulation studies).
+- You want to inspect the calibrated model before simulating.
+- You want to call `simulate()` in pipelines (it is the standard R generic).
+
+Use the original `rIG()` / `rPLSIM()` / `vita()` wrappers when:
+
+- You only need a one-shot draw.
+- You're maintaining old code; both still work and produce the same
+  output shape as in covsim 1.1.0.

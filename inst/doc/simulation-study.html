@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Njål Foldnes" />
+
+<meta name="date" content="2026-10-29" />
+
+<title>Monte Carlo studies with covsim</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Monte Carlo studies with covsim</h1>
+<h4 class="author">Njål Foldnes</h4>
+<h4 class="date">2026-10-29</h4>
+
+
+
+<p>This vignette walks through a complete simulation study in covsim:
+specify a population, calibrate several non-normal data generators with
+the same covariance matrix, skewness and kurtosis, and estimate a
+structural equation model on many simulated samples.</p>
+<p>The study is done in two ways. First by hand: the calibration objects
+produce lists of samples, as <code>rIG()</code>, <code>rPLSIM()</code>
+and <code>vita()</code> did in earlier versions of covsim, and the
+researcher writes the loop that fits the model and collects the results.
+Then with <code>simulate_estimate()</code>, which runs that loop and
+takes care of the bookkeeping. Estimation is done with lavaan and with
+magmaan, which is much faster.</p>
+<p>The question studied is a classical one: how often do chi-square
+tests of model fit reject a correctly specified model when the data are
+non-normal? The answer depends on the data generator, even when all
+generators share the same first four marginal moments. This is why it is
+useful to compare several generators in the same study.</p>
+<p>The number of replications is kept small so the vignette builds
+quickly. A real study would use 1000 or more replications per
+condition.</p>
+<div id="the-population" class="section level2">
+<h2>The population</h2>
+<p>A two-factor model with three indicators per factor, standardized
+loadings 0.7 and factor correlation 0.4. The variable names of
+<code>sigma</code> must match the model syntax.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(covsim)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="st">&quot;F1 =~ x1 + x2 + x3</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="st">          F2 =~ x4 + x5 + x6&quot;</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, <span class="dv">6</span>, <span class="dv">2</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>L[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span>] <span class="ot">&lt;-</span> L[<span class="dv">4</span><span class="sc">:</span><span class="dv">6</span>, <span class="dv">2</span>] <span class="ot">&lt;-</span> <span class="fl">0.7</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>sigma <span class="ot">&lt;-</span> L <span class="sc">%*%</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.4</span>, <span class="fl">0.4</span>, <span class="dv">1</span>), <span class="dv">2</span>) <span class="sc">%*%</span> <span class="fu">t</span>(L)</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a><span class="fu">diag</span>(sigma) <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a><span class="fu">dimnames</span>(sigma) <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="fu">paste0</span>(<span class="st">&quot;x&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>), <span class="fu">paste0</span>(<span class="st">&quot;x&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>))</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>skew <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">2</span>, <span class="dv">6</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>kurt <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">7</span>, <span class="dv">6</span>)   <span class="co"># excess kurtosis</span></span></code></pre></div>
+</div>
+<div id="calibrating-the-data-generators" class="section level2">
+<h2>Calibrating the data generators</h2>
+<p>Each <code>calibrate_*()</code> function returns a calibration
+object. Calibration is done once, and the object can then produce any
+number of samples.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>dists <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="at">IG    =</span> <span class="fu">calibrate_ig</span>(sigma, skew, kurt),</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">PLSIM =</span> <span class="fu">calibrate_plsim</span>(sigma, skew, kurt, <span class="at">verbose =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">VM    =</span> <span class="fu">calibrate_vm</span>(sigma, skew, kurt)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>)</span></code></pre></div>
+<p>The three generators have the same covariance matrix, skewness and
+excess kurtosis, but differ in their multivariate dependence. A large
+sample confirms the marginal moments:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>moments <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">c</span>(<span class="at">skew =</span> <span class="fu">mean</span>(<span class="fu">scale</span>(x)<span class="sc">^</span><span class="dv">3</span>), <span class="at">exkurt =</span> <span class="fu">mean</span>(<span class="fu">scale</span>(x)<span class="sc">^</span><span class="dv">4</span>) <span class="sc">-</span> <span class="dv">3</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">sapply</span>(dists, <span class="cf">function</span>(d) <span class="fu">moments</span>(<span class="fu">simulate</span>(d, <span class="at">N =</span> <span class="fl">1e5</span>)[[<span class="dv">1</span>]][, <span class="dv">1</span>])), <span class="dv">2</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt;          IG PLSIM   VM</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; skew   2.02  2.01 2.03</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; exkurt 7.47  7.14 7.22</span></span></code></pre></div>
+<p>VITA (vine copulas) can be added in the same way. Its calibration
+takes longer, so it is not run here:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>margins <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fu">list</span>(<span class="fu">list</span>(<span class="at">distr =</span> <span class="st">&quot;gamma&quot;</span>, <span class="at">shape =</span> <span class="dv">1</span>)), <span class="dv">6</span>)  <span class="co"># skewness 2</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>dists<span class="sc">$</span>VITA <span class="ot">&lt;-</span> <span class="fu">calibrate_vita</span>(margins, sigma, <span class="at">Nmax =</span> <span class="fl">1e5</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+<p>Note that VITA works with the margins as distributions, so their
+skewness and kurtosis are given by the chosen family (here a gamma
+margin with skewness 2 and excess kurtosis 6), and the covariance matrix
+must be on the scale of those margins.</p>
+</div>
+<div id="part-1-the-study-by-hand" class="section level2">
+<h2>Part 1: the study by hand</h2>
+<div id="a-list-of-samples" class="section level3">
+<h3>A list of samples</h3>
+<p><code>simulate()</code> draws <code>nsim</code> samples of size
+<code>N</code> from a calibration object and returns them as a list of
+data matrices with the variable names of <code>sigma</code>. The same
+<code>seed</code> gives the same samples:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>samples <span class="ot">&lt;-</span> <span class="fu">simulate</span>(dists<span class="sc">$</span>PLSIM, <span class="at">nsim =</span> <span class="dv">50</span>, <span class="at">N =</span> <span class="dv">200</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">length</span>(samples)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1] 50</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">head</span>(samples[[<span class="dv">1</span>]], <span class="dv">3</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt;              x1          x2         x3        x4         x5        x6</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; [1,] -0.4101574  0.41281098 -0.2509398 1.0874435 -0.3141345 -0.393562</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; [2,]  0.0121689 -0.14186017 -1.2891077 3.1039231 -0.2188600 -0.367604</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt; [3,] -0.4030072  0.09774435 -0.3928586 0.3584605  1.1263063  2.835460</span></span></code></pre></div>
+<p>The functions of earlier covsim versions still work, with the same
+arguments and output. They calibrate and draw in one call, using the
+same fast calibration as <code>calibrate_plsim()</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>old_way <span class="ot">&lt;-</span> <span class="fu">rPLSIM</span>(<span class="dv">200</span>, sigma, skew, kurt, <span class="at">reps =</span> <span class="dv">50</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">length</span>(old_way<span class="sc">$</span>samples)</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; [1] 50</span></span></code></pre></div>
+<p>Each call to <code>rPLSIM()</code> calibrates once and then draws all
+<code>reps</code> samples. When the same population is needed several
+times, for example for several sample sizes, it is cheaper to calibrate
+once with <code>calibrate_plsim()</code> and call
+<code>simulate()</code> for each sample size, since every new call to
+<code>rPLSIM()</code> repeats the calibration.</p>
+</div>
+<div id="fitting-the-model-and-collecting-the-results" class="section level3">
+<h3>Fitting the model and collecting the results</h3>
+<p>The researcher now has full control: any estimator can be used and
+anything can be stored. Here each sample is fitted with lavaan using
+MLR, and the p-values of the ML test and of the scaled (Yuan-Bentler)
+test are kept. A fit that fails gives <code>NA</code> instead of
+stopping the loop:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>fit_tests <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  fit <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(lavaan<span class="sc">::</span><span class="fu">sem</span>(model, <span class="at">data =</span> <span class="fu">as.data.frame</span>(x), <span class="at">estimator =</span> <span class="st">&quot;MLR&quot;</span>),</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>                  <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.null</span>(fit))</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">c</span>(<span class="at">pvalue =</span> <span class="cn">NA</span>, <span class="at">pvalue.scaled =</span> <span class="cn">NA</span>))</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  lavaan<span class="sc">::</span><span class="fu">fitMeasures</span>(fit, <span class="fu">c</span>(<span class="st">&quot;pvalue&quot;</span>, <span class="st">&quot;pvalue.scaled&quot;</span>))</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>}</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>by_hand <span class="ot">&lt;-</span> <span class="fu">lapply</span>(dists, <span class="cf">function</span>(cal) {</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  samples <span class="ot">&lt;-</span> <span class="fu">simulate</span>(cal, <span class="at">nsim =</span> <span class="dv">50</span>, <span class="at">N =</span> <span class="dv">200</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="fu">t</span>(<span class="fu">sapply</span>(samples, fit_tests))</span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>})</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="fu">head</span>(by_hand<span class="sc">$</span>VM, <span class="dv">3</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt;         pvalue pvalue.scaled</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt; [1,] 0.7330111     0.6121612</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt; [2,] 0.5085567     0.5690397</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt; [3,] 0.2463290     0.2917469</span></span></code></pre></div>
+<p>Rejection rates at the 5% level:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">sapply</span>(by_hand, <span class="cf">function</span>(p) <span class="fu">colMeans</span>(p <span class="sc">&lt;</span> <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)), <span class="dv">2</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt;                 IG PLSIM   VM</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; pvalue        0.16  0.24 0.20</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; pvalue.scaled 0.12  0.14 0.16</span></span></code></pre></div>
+<p>This is all that is needed for a small study. A larger study with
+several sample sizes, many conditions and parallel computing also needs
+a design table, a random number stream for each condition (so that the
+results do not depend on the order or the number of cores), a record of
+errors and warnings in each replication, and a way to combine everything
+into one data set. <code>simulate_estimate()</code> does this.</p>
+</div>
+</div>
+<div id="part-2-the-study-with-simulate_estimate" class="section level2">
+<h2>Part 2: the study with simulate_estimate()</h2>
+<div id="the-extractor-what-to-keep-from-each-fit" class="section level3">
+<h3>The extractor: what to keep from each fit</h3>
+<p><code>simulate_estimate()</code> draws <code>reps</code> samples of
+each size in <code>n</code> from each distribution, fits the model to
+each sample, and passes the fitted object to <code>extractor</code>. The
+extractor is a function written by the researcher, in the same way as
+<code>fit_tests()</code> above: it receives one fitted object and
+returns a named vector (or list) of the quantities to keep; each element
+becomes a column of the result. Which estimates, standard errors, test
+statistics or fit indices to keep is thus decided by the researcher, not
+by covsim.</p>
+<p>The extractor must be written for the estimation package used. The
+examples below use lavaan’s accessor functions
+<code>fitMeasures()</code> and <code>parameterEstimates()</code>;
+magmaan versions follow later.</p>
+</div>
+<div id="estimation-with-lavaan" class="section level3">
+<h3>Estimation with lavaan</h3>
+<p>Arguments in <code>...</code> go to <code>lavaan::sem()</code>. Here
+the model is estimated with MLR. The first extractor keeps the statistic
+and p-value of the normal theory ML chi-square test and of the
+Yuan-Bentler (MLR) scaled test:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>chisq_tests <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>  lavaan<span class="sc">::</span><span class="fu">fitMeasures</span>(fit, <span class="fu">c</span>(<span class="st">&quot;chisq&quot;</span>, <span class="st">&quot;pvalue&quot;</span>, <span class="st">&quot;chisq.scaled&quot;</span>, <span class="st">&quot;pvalue.scaled&quot;</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>}</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a>                         <span class="at">extractor =</span> chisq_tests, <span class="at">estimator =</span> <span class="st">&quot;MLR&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="fu">head</span>(res)</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt;   dist   n rep converged error warning     chisq    pvalue chisq.scaled</span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">#&gt; 1   IG 200   1      TRUE  &lt;NA&gt;    &lt;NA&gt; 13.139242 0.1071477    17.303819</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co">#&gt; 2   IG 200   2      TRUE  &lt;NA&gt;    &lt;NA&gt; 12.344890 0.1364663    14.964371</span></span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="co">#&gt; 3   IG 200   3      TRUE  &lt;NA&gt;    &lt;NA&gt;  4.089174 0.8489895     6.719689</span></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="co">#&gt; 4   IG 200   4      TRUE  &lt;NA&gt;    &lt;NA&gt;  6.938831 0.5432465     7.075888</span></span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#&gt; 5   IG 200   5      TRUE  &lt;NA&gt;    &lt;NA&gt;  6.845373 0.5534041     7.123690</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="co">#&gt; 6   IG 200   6      TRUE  &lt;NA&gt;    &lt;NA&gt;  3.521407 0.8975219     4.980416</span></span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="co">#&gt;   pvalue.scaled</span></span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a><span class="co">#&gt; 1    0.02709642</span></span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a><span class="co">#&gt; 2    0.05984197</span></span>
+<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a><span class="co">#&gt; 3    0.56715588</span></span>
+<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a><span class="co">#&gt; 4    0.52846756</span></span>
+<span id="cb9-20"><a href="#cb9-20" tabindex="-1"></a><span class="co">#&gt; 5    0.52334827</span></span>
+<span id="cb9-21"><a href="#cb9-21" tabindex="-1"></a><span class="co">#&gt; 6    0.75966723</span></span></code></pre></div>
+<p>There is one row per replication. The columns <code>converged</code>,
+<code>error</code> and <code>warning</code> record what happened in each
+fit; a failed fit gives <code>NA</code> values and an error message
+instead of stopping the study.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">table</span>(res<span class="sc">$</span>converged, <span class="at">useNA =</span> <span class="st">&quot;ifany&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; TRUE </span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt;  300</span></span></code></pre></div>
+<p>Rejection rates at the 5% level, by distribution and sample size:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>reject <span class="ot">&lt;-</span> <span class="cf">function</span>(p) <span class="fu">mean</span>(p <span class="sc">&lt;</span> <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">aggregate</span>(<span class="fu">cbind</span>(<span class="at">ML =</span> pvalue, <span class="at">MLR =</span> pvalue.scaled) <span class="sc">~</span> dist <span class="sc">+</span> n, <span class="at">data =</span> res,</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>          <span class="at">FUN =</span> reject)</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt;    dist   n   ML  MLR</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; 1    IG 200 0.04 0.06</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; 2 PLSIM 200 0.16 0.14</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; 3    VM 200 0.16 0.16</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; 4    IG 500 0.06 0.04</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; 5 PLSIM 500 0.18 0.06</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; 6    VM 500 0.18 0.10</span></span></code></pre></div>
+<p>The rejection rates differ between the generators although they share
+the same covariance matrix, skewness and kurtosis. With 50 replications
+each rate has a standard error of about 3 percentage points, so a real
+study needs many more replications before such differences can be
+interpreted. The rates also differ from those in Part 1:
+<code>simulate_estimate()</code> gives each replication its own random
+number stream, so <code>seed = 1</code> does not produce the same
+samples as <code>simulate(cal, seed = 1)</code>.</p>
+<div id="fit-indices" class="section level4">
+<h4>Fit indices</h4>
+<p>To study RMSEA and CFI, ordinary and robust, extract those
+instead:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>fit_indices <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  lavaan<span class="sc">::</span><span class="fu">fitMeasures</span>(fit, <span class="fu">c</span>(<span class="st">&quot;rmsea&quot;</span>, <span class="st">&quot;rmsea.robust&quot;</span>, <span class="st">&quot;cfi&quot;</span>, <span class="st">&quot;cfi.robust&quot;</span>))</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>}</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>res_fi <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="dv">200</span>, <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>                            <span class="at">extractor =</span> fit_indices, <span class="at">estimator =</span> <span class="st">&quot;MLR&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="fu">aggregate</span>(<span class="fu">cbind</span>(rmsea, rmsea.robust, cfi, cfi.robust) <span class="sc">~</span> dist, <span class="at">data =</span> res_fi,</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a>          <span class="at">FUN =</span> mean)</span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="co">#&gt;    dist      rmsea rmsea.robust       cfi cfi.robust</span></span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co">#&gt; 1    IG 0.01698970   0.02116894 0.9955399  0.9941137</span></span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co">#&gt; 2 PLSIM 0.03529958   0.02917490 0.9878785  0.9895980</span></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="co">#&gt; 3    VM 0.03544332   0.03302894 0.9856679  0.9862149</span></span></code></pre></div>
+</div>
+<div id="parameter-estimates-standard-errors-and-coverage" class="section level4">
+<h4>Parameter estimates, standard errors and coverage</h4>
+<p>An extractor can pick out a single parameter. Here it keeps the
+estimate, standard error and 95% confidence limits of the loading of
+<code>x2</code>, whose population value is 1 (the indicators have unit
+variance and standardized loadings 0.7, and the loading of
+<code>x1</code> is fixed to 1):</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>loading_x2 <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  pe <span class="ot">&lt;-</span> lavaan<span class="sc">::</span><span class="fu">parameterEstimates</span>(fit)</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  pe <span class="ot">&lt;-</span> pe[pe<span class="sc">$</span>lhs <span class="sc">==</span> <span class="st">&quot;F1&quot;</span> <span class="sc">&amp;</span> pe<span class="sc">$</span>op <span class="sc">==</span> <span class="st">&quot;=~&quot;</span> <span class="sc">&amp;</span> pe<span class="sc">$</span>rhs <span class="sc">==</span> <span class="st">&quot;x2&quot;</span>, ]</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">est =</span> pe<span class="sc">$</span>est, <span class="at">se =</span> pe<span class="sc">$</span>se, <span class="at">lower =</span> pe<span class="sc">$</span>ci.lower, <span class="at">upper =</span> pe<span class="sc">$</span>ci.upper)</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>}</span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>res_ML  <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="dv">200</span>, <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>                             <span class="at">extractor =</span> loading_x2, <span class="at">seed =</span> <span class="dv">2</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>res_MLR <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="dv">200</span>, <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a>                             <span class="at">extractor =</span> loading_x2, <span class="at">estimator =</span> <span class="st">&quot;MLR&quot;</span>, <span class="at">seed =</span> <span class="dv">2</span>)</span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>summarize <span class="ot">&lt;-</span> <span class="cf">function</span>(r) {</span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">bias =</span> <span class="fu">mean</span>(r<span class="sc">$</span>est) <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>    <span class="at">empirical_sd =</span> <span class="fu">sd</span>(r<span class="sc">$</span>est),</span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a>    <span class="at">mean_se =</span> <span class="fu">mean</span>(r<span class="sc">$</span>se),</span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a>    <span class="at">coverage =</span> <span class="fu">mean</span>(r<span class="sc">$</span>lower <span class="sc">&lt;</span> <span class="dv">1</span> <span class="sc">&amp;</span> <span class="dv">1</span> <span class="sc">&lt;</span> r<span class="sc">$</span>upper))</span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a>}</span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a>tab <span class="ot">&lt;-</span> <span class="fu">rbind</span>(<span class="fu">sapply</span>(<span class="fu">split</span>(res_ML, res_ML<span class="sc">$</span>dist), summarize),</span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a>             <span class="fu">sapply</span>(<span class="fu">split</span>(res_MLR, res_MLR<span class="sc">$</span>dist), summarize))</span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="fu">rownames</span>(tab) <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;ML&quot;</span>, <span class="st">&quot;MLR&quot;</span>), <span class="at">each =</span> <span class="dv">4</span>), <span class="fu">rownames</span>(tab))</span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="fu">round</span>(tab, <span class="dv">3</span>)</span>
+<span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="co">#&gt;                     IG PLSIM    VM</span></span>
+<span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="co">#&gt; ML bias          0.058 0.072 0.012</span></span>
+<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="co">#&gt; ML empirical_sd  0.246 0.251 0.214</span></span>
+<span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a><span class="co">#&gt; ML mean_se       0.154 0.157 0.147</span></span>
+<span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a><span class="co">#&gt; ML coverage      0.820 0.820 0.820</span></span>
+<span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="co">#&gt; MLR bias         0.058 0.072 0.012</span></span>
+<span id="cb13-28"><a href="#cb13-28" tabindex="-1"></a><span class="co">#&gt; MLR empirical_sd 0.246 0.251 0.214</span></span>
+<span id="cb13-29"><a href="#cb13-29" tabindex="-1"></a><span class="co">#&gt; MLR mean_se      0.203 0.239 0.200</span></span>
+<span id="cb13-30"><a href="#cb13-30" tabindex="-1"></a><span class="co">#&gt; MLR coverage     0.840 0.920 0.960</span></span></code></pre></div>
+<p>Both runs use <code>seed = 2</code>, so ML and MLR are computed on
+the same samples and differ only in the standard errors: the estimates
+are identical. When the mean standard error is far below the empirical
+standard deviation, the confidence intervals cover the true value less
+often than 95%.</p>
+</div>
+<div id="reproducibility-and-parallel-computing" class="section level4">
+<h4>Reproducibility and parallel computing</h4>
+<p>Each replication uses its own random number stream, determined by
+<code>seed</code> and its position in the design. The result is
+therefore the same for any number of cores, and the seed is stored with
+the result:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">attr</span>(res, <span class="st">&quot;info&quot;</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="co">#&gt; $seed</span></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co">#&gt; [1] 1</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="co">#&gt; $fit</span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt; [1] &quot;lavaan&quot;</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="co">#&gt; $versions</span></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a><span class="co">#&gt;  covsim  lavaan </span></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="co">#&gt; &quot;1.2.0&quot; &quot;0.7.2&quot;</span></span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>res4 <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>                          <span class="at">extractor =</span> chisq_tests, <span class="at">estimator =</span> <span class="st">&quot;MLR&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>                          <span class="at">cores =</span> <span class="dv">4</span>)</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="fu">all.equal</span>(res, res4)   <span class="co"># TRUE (on Windows, cores is set to 1)</span></span></code></pre></div>
+<p>To keep the whole fitted objects, for analyses not planned in
+advance, use <code>extractor = function(fit) list(fit = fit)</code>.
+This uses much more memory.</p>
+</div>
+</div>
+<div id="estimation-with-magmaan" class="section level3">
+<h3>Estimation with magmaan</h3>
+<p><a href="https://github.com/JonasMoss/magmaan">magmaan</a> is a fast
+SEM estimator by Jonas Moss with a C++ core. It is not on CRAN; see the
+end of this vignette for installation. The code in this section is only
+run when magmaan (version 0.2.0 or later) is installed.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>has_magmaan</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<p>With <code>fit = &quot;magmaan&quot;</code> the model is built once per
+distribution and reused for every sample. A magmaan fit has its own
+accessors, so the extractors are written differently:</p>
+<ul>
+<li><code>summary(fit)$tests</code>: the robust score and likelihood
+ratio tests, calibrated with the PEBA4 approximation by default;</li>
+<li><code>summary(fit)$coefficients</code>: the parameter table, with
+columns <code>lhs</code>, <code>op</code>, <code>rhs</code>,
+<code>est</code>, <code>se</code>, <code>pvalue</code>,
+<code>ci.lower</code> and <code>ci.upper</code>;</li>
+<li><code>magmaan::fit_measures(fit)</code>: the fit indices.</li>
+</ul>
+<p>Two differences from lavaan matter when results are compared.
+magmaan’s default standard errors are robust (sandwich), which
+corresponds to lavaan with <code>estimator = &quot;MLR&quot;</code>, not to plain
+ML. And <code>fit_measures(fit)</code> reports robust RMSEA and CFI and
+a bias-corrected SRMR under the plain names;
+<code>fit_measures(fit, lavaan_compat = &quot;MLR&quot;)</code> gives lavaan’s
+definitions and names.</p>
+<p>The magmaan versions of the test and loading extractors:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>mag_tests <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>  tests <span class="ot">&lt;-</span> <span class="fu">summary</span>(fit)<span class="sc">$</span>tests</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  <span class="fu">setNames</span>(tests<span class="sc">$</span>pvalue, <span class="fu">paste</span>(tests<span class="sc">$</span>test, tests<span class="sc">$</span>reference, <span class="at">sep =</span> <span class="st">&quot;_&quot;</span>))</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>}</span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>res_mag <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>                             <span class="at">extractor =</span> mag_tests, <span class="at">fit =</span> <span class="st">&quot;magmaan&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a><span class="fu">head</span>(res_mag)</span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a><span class="fu">aggregate</span>(<span class="fu">cbind</span>(score_peba4, lr_peba4) <span class="sc">~</span> dist <span class="sc">+</span> n, <span class="at">data =</span> res_mag,</span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a>          <span class="at">FUN =</span> reject)</span></code></pre></div>
+<p>Because the seed and the design are the same, <code>res</code> and
+<code>res_mag</code> are computed on exactly the same simulated samples,
+so the lavaan and magmaan tests can be compared replication by
+replication:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>both <span class="ot">&lt;-</span> <span class="fu">merge</span>(res[, <span class="fu">c</span>(<span class="st">&quot;dist&quot;</span>, <span class="st">&quot;n&quot;</span>, <span class="st">&quot;rep&quot;</span>, <span class="st">&quot;pvalue.scaled&quot;</span>)],</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>              res_mag[, <span class="fu">c</span>(<span class="st">&quot;dist&quot;</span>, <span class="st">&quot;n&quot;</span>, <span class="st">&quot;rep&quot;</span>, <span class="st">&quot;score_peba4&quot;</span>)])</span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="fu">aggregate</span>(<span class="fu">cbind</span>(<span class="at">MLR =</span> pvalue.scaled, <span class="at">PEBA4 =</span> score_peba4) <span class="sc">~</span> dist, <span class="at">data =</span> both,</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>          <span class="at">FUN =</span> reject)</span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>mag_loading_x2 <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>  cf <span class="ot">&lt;-</span> <span class="fu">summary</span>(fit)<span class="sc">$</span>coefficients</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>  cf <span class="ot">&lt;-</span> cf[cf<span class="sc">$</span>lhs <span class="sc">==</span> <span class="st">&quot;F1&quot;</span> <span class="sc">&amp;</span> cf<span class="sc">$</span>op <span class="sc">==</span> <span class="st">&quot;=~&quot;</span> <span class="sc">&amp;</span> cf<span class="sc">$</span>rhs <span class="sc">==</span> <span class="st">&quot;x2&quot;</span>, ]</span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>  <span class="fu">c</span>(<span class="at">est =</span> cf<span class="sc">$</span>est, <span class="at">se =</span> cf<span class="sc">$</span>se, <span class="at">lower =</span> cf<span class="sc">$</span>ci.lower, <span class="at">upper =</span> cf<span class="sc">$</span>ci.upper)</span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>}</span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a>mag_fit_indices <span class="ot">&lt;-</span> <span class="cf">function</span>(fit) {</span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a>  fm <span class="ot">&lt;-</span> magmaan<span class="sc">::</span><span class="fu">fit_measures</span>(fit, <span class="at">lavaan_compat =</span> <span class="st">&quot;MLR&quot;</span>)</span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a>  <span class="fu">setNames</span>(fm<span class="sc">$</span>estimate, fm<span class="sc">$</span>index)[<span class="fu">c</span>(<span class="st">&quot;rmsea&quot;</span>, <span class="st">&quot;rmsea.robust&quot;</span>, <span class="st">&quot;cfi&quot;</span>, <span class="st">&quot;cfi.robust&quot;</span>)]</span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a>}</span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a></span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a>res_mag2 <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists, model, <span class="at">n =</span> <span class="dv">200</span>, <span class="at">reps =</span> <span class="dv">50</span>, <span class="at">fit =</span> <span class="st">&quot;magmaan&quot;</span>,</span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a>                              <span class="at">extractor =</span> <span class="cf">function</span>(fit) <span class="fu">c</span>(<span class="fu">mag_loading_x2</span>(fit),</span>
+<span id="cb19-13"><a href="#cb19-13" tabindex="-1"></a>                                                          <span class="fu">mag_fit_indices</span>(fit)),</span>
+<span id="cb19-14"><a href="#cb19-14" tabindex="-1"></a>                              <span class="at">seed =</span> <span class="dv">2</span>)</span>
+<span id="cb19-15"><a href="#cb19-15" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">sapply</span>(<span class="fu">split</span>(res_mag2, res_mag2<span class="sc">$</span>dist), summarize), <span class="dv">3</span>)</span></code></pre></div>
+<p>The extractor above combines two functions; the result has one column
+for each quantity. With the same seed, these numbers agree with the MLR
+rows of the lavaan table above.</p>
+<div id="speed" class="section level4">
+<h4>Speed</h4>
+<p>magmaan is typically several times faster than lavaan, which matters
+in studies with many conditions:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>t_lavaan <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="fu">simulate_estimate</span>(dists<span class="sc">$</span>VM, model, <span class="at">n =</span> <span class="dv">500</span>, <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>                    <span class="at">extractor =</span> chisq_tests, <span class="at">estimator =</span> <span class="st">&quot;MLR&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>))[[<span class="st">&quot;elapsed&quot;</span>]]</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>t_magmaan <span class="ot">&lt;-</span> <span class="fu">system.time</span>(</span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a>  <span class="fu">simulate_estimate</span>(dists<span class="sc">$</span>VM, model, <span class="at">n =</span> <span class="dv">500</span>, <span class="at">reps =</span> <span class="dv">50</span>,</span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>                    <span class="at">extractor =</span> mag_tests, <span class="at">fit =</span> <span class="st">&quot;magmaan&quot;</span>, <span class="at">seed =</span> <span class="dv">1</span>))[[<span class="st">&quot;elapsed&quot;</span>]]</span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a><span class="fu">c</span>(<span class="at">lavaan =</span> t_lavaan, <span class="at">magmaan =</span> t_magmaan, <span class="at">ratio =</span> t_lavaan <span class="sc">/</span> t_magmaan)</span></code></pre></div>
+<p>Arguments in <code>...</code> are passed to
+<code>magmaan::magmaan()</code>. For example,
+<code>inference = FALSE</code> skips standard errors and tests when only
+the estimates are needed.</p>
+</div>
+<div id="installing-magmaan" class="section level4">
+<h4>Installing magmaan</h4>
+<p>magmaan needs a C++23 compiler and is installed from GitHub in two
+steps:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;JonasMoss/magmaan&quot;</span>, <span class="at">subdir =</span> <span class="st">&quot;r-package&quot;</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;JonasMoss/magmaan&quot;</span>, <span class="at">subdir =</span> <span class="st">&quot;r-magmaan&quot;</span>)</span></code></pre></div>
+</div>
+</div>
+<div id="any-estimator-a-user-supplied-fit-function" class="section level3">
+<h3>Any estimator: a user-supplied fit function</h3>
+<p><code>fit</code> can also be any function of the data and the model.
+Here lavaan is used with the WLS estimator, but the function could just
+as well call another package; the extractor must then match what that
+function returns:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>fit_wls <span class="ot">&lt;-</span> <span class="cf">function</span>(data, model) lavaan<span class="sc">::</span><span class="fu">sem</span>(model, <span class="at">data =</span> data, <span class="at">estimator =</span> <span class="st">&quot;WLS&quot;</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>res_wls <span class="ot">&lt;-</span> <span class="fu">simulate_estimate</span>(dists<span class="sc">$</span>IG, model, <span class="at">n =</span> <span class="dv">500</span>, <span class="at">reps =</span> <span class="dv">20</span>,</span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>                             <span class="at">extractor =</span> chisq_tests, <span class="at">fit =</span> fit_wls, <span class="at">seed =</span> <span class="dv">1</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a><span class="fu">reject</span>(res_wls<span class="sc">$</span>pvalue)</span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a><span class="co">#&gt; [1] 0.1</span></span></code></pre></div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

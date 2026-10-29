@@ -1,3 +1,17 @@
+# Number of worker processes for parallel::mclapply. Forking is not available
+# on Windows, and CRAN checks (_R_CHECK_LIMIT_CORES_) allow at most two cores.
+usable_cores <- function(cores) {
+  cores <- suppressWarnings(as.integer(cores))
+  if (length(cores) != 1 || is.na(cores) || cores < 1L)
+    return(1L)
+  if (.Platform$OS.type == "windows")
+    return(1L)
+  limit <- tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_"))
+  if (nzchar(limit) && limit != "false")
+    cores <- min(cores, 2L)
+  cores
+}
+
 create.submatrix <- function(I, Matrix)
 {
   # I <- unique(I)
@@ -214,38 +228,87 @@ pl_fun <- function(x, a, b, gamma){
 
 
 ## COVARIANCE
-get_cov<- function(a1, b1, gamma1, a2,b2, gamma2, rho){
-  gg1 <- c(-Inf, gamma1, Inf)
-  gg2 <- c(-Inf, gamma2, Inf)
+# Covariance of two continuous piecewise linear transforms f, g of a standard
+# bivariate normal pair with correlation rho. By Price's theorem,
+# d/drho E[f(Z1)g(Z2)] = E[f'(Z1)g'(Z2)], and since f'' and g'' are point masses
+# at the breakpoints (slope jumps diff(a)),
+#   Cov = rho*E[f']E[g'] + sum_kl da1_k da2_l int_0^rho (rho-t) phi2(gk, gl; t) dt.
+# The integral is smooth after substituting t = sin(theta), and Gauss-Legendre
+# quadrature in theta is accurate to machine precision even for |rho| near 1.
+# b1, b2 are unused (the covariance depends on the slopes and breakpoints only)
+# but kept so the signature matches the old tmvtnorm-based implementation.
+get_cov <- function(a1, b1, gamma1, a2, b2, gamma2, rho){
+  p1 <- diff(stats::pnorm(c(-Inf, gamma1, Inf)))
+  p2 <- diff(stats::pnorm(c(-Inf, gamma2, Inf)))
+  cov <- rho * sum(a1 * p1) * sum(a2 * p2)
+  if (rho == 0 || length(gamma1) == 0 || length(gamma2) == 0)
+    return(cov)
 
-  cov <- 0
-  for(j in 2:length(gg2)){
-    low2 <- gg2[j-1]; upp2 <- gg2[j]
-    a2.tmp <- a2[j-1]; b2.tmp <- b2[j-1]
-    for(i in 2:length(gg1)){
-      low1 <- gg1[i-1]; upp1 <- gg1[i]
-      a1.tmp <- a1[i-1]; b1.tmp <- b1[i-1]
+  gl <- gauss_legendre()
+  theta <- asin(rho) * (gl$nodes + 1) / 2
+  w <- gl$weights * asin(rho) / 2 * cos(theta) * (rho - sin(theta))
+  t <- sin(theta)
 
-      prob <- tmvtnorm::ptmvnorm(lowerx=c(low1,low2), upperx=c(upp1,upp2),
-                                 sigma=matrix(c(1,rho, rho, 1),2))
-
-      ## sometimes returns NA for extreme case
-      ## so we break if prob is 0
-      if (prob < 1e-6)
-        next
-
-      res <- tmvtnorm::mtmvnorm(sigma=matrix(c(1,rho, rho, 1),2),
-                                lower=c(low1,low2), upper=c(upp1,upp2))
-      ex <- res$tmean[1]; ey <- res$tmean[2]
-      exy <- res$tvar[1,2]+ex*ey
-      if(is.na(exy))
-        cat("NA in exy for",i, j, "\n")
-      cov <- cov + (a1.tmp*a2.tmp*exy +a1.tmp*b2.tmp*ex+
-                      a2.tmp*b1.tmp*ey+b1.tmp*b2.tmp)*prob
-    }
-  }
-  cov
+  x <- rep(gamma1, times = length(gamma2))
+  y <- rep(gamma2, each = length(gamma1))
+  jumps <- as.vector(outer(diff(a1), diff(a2)))
+  s2 <- 1 - t^2
+  q <- outer(x^2 + y^2, rep(1, length(t))) - 2 * outer(x * y, t)
+  phi2 <- exp(-q / rep(2 * s2, each = length(x))) /
+    rep(2 * pi * sqrt(s2), each = length(x))
+  cov + sum(jumps * as.vector(phi2 %*% w))
 }
+
+# Intermediate normal correlation giving correlation `target` after the
+# (unit-variance) piecewise linear transforms. Cov(0) = 0, so for a positive
+# target we bracket on [0, bound] and for a negative one on [-bound, 0]. If that
+# fails (possible for non-monotone transforms) a grid over [-bound, bound] is
+# scanned for a sign change. Returns NA if no root exists.
+solve_pl_corr <- function(a1, b1, gamma1, a2, b2, gamma2, target, bound = 0.999){
+  if (target == 0)
+    return(0)
+  f <- function(rho) get_cov(a1, b1, gamma1, a2, b2, gamma2, rho) - target
+  if (target > 0) {
+    lims <- c(0, bound); f.lims <- c(-target, f(bound))
+  } else {
+    lims <- c(-bound, 0); f.lims <- c(f(-bound), -target)
+  }
+  if (prod(f.lims) <= 0)
+    return(stats::uniroot(f, lims, f.lower = f.lims[1], f.upper = f.lims[2],
+                          tol = 1e-12)$root)
+  grid <- seq(-bound, bound, length.out = 41)
+  f.grid <- vapply(grid, f, numeric(1))
+  k <- which(f.grid[-1] * f.grid[-length(grid)] <= 0)
+  if (length(k) == 0)
+    return(NA_real_)
+  k <- k[which.min(abs(grid[k] - target))]
+  stats::uniroot(f, grid[c(k, k + 1)], f.lower = f.grid[k],
+                 f.upper = f.grid[k + 1], tol = 1e-12)$root
+}
+
+# Attainable correlation range for a pair of unit-variance PL transforms
+pl_corr_range <- function(a1, b1, gamma1, a2, b2, gamma2, bound = 0.999){
+  grid <- seq(-bound, bound, length.out = 41)
+  r <- vapply(grid, function(rho) get_cov(a1, b1, gamma1, a2, b2, gamma2, rho),
+              numeric(1))
+  range(r)
+}
+
+# 32-point Gauss-Legendre rule on [-1, 1] (Golub-Welsch), computed once
+gauss_legendre <- local({
+  rule <- NULL
+  function() {
+    if (is.null(rule)) {
+      n <- 32
+      i <- seq_len(n - 1)
+      J <- matrix(0, n, n)
+      J[cbind(i, i + 1)] <- J[cbind(i + 1, i)] <- i / sqrt(4 * i^2 - 1)
+      e <- eigen(J, symmetric = TRUE)
+      rule <<- list(nodes = e$values, weights = 2 * e$vectors[1, ]^2)
+    }
+    rule
+  }
+})
 
 
 
